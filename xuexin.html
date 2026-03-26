@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国高等教育学生信息网（学信网）- 在线验证报告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 引入思源黑体字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- 引入HTML转PDF所需库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- 引入邮箱发送所需的EmailJS -->
+    <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        xuexin: {
+                            primary: '#00B0C8',    // 学信网顶部青蓝色导航栏
+                            sidebar: '#E8F4F8',     // 侧边栏浅背景色
+                            reportBorder: '#40C090', // 备案表绿色边框
+                            active: '#0099CC',      // 侧边栏激活色
+                            // 新增：激活项右侧竖线颜色（红框标注的蓝绿色）
+                            activeBorder: '#00B0C8',
+                            // 新增：图片色值（根据需求调整为实际图片色值，这里用#0088CC示例）
+                            navHover: '#0088CC'     
+                        }
+                    },
+                    fontFamily: {
+                        // 修改为思源黑体
+                        sans: ['Noto Sans SC', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .report-bg {
+                background-image: url('https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/0b8005ed412444bab331b31ee5066c8a.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=20260323120703780E9483EEF7A0EAB6E5&rrcfp=8a172a1a&x-expires=1774843623&x-signature=FZpCsY2tl8Yv2MoJn4Tg%2BHM4B84%3D');
+                background-size: 100% 100%;
+                background-repeat: no-repeat;
+                background-position: center;
+                position: relative;
+                overflow: hidden;
+                min-height: 900px;
+                padding: 60px 80px !important;
+            }
+            /* 核心修改：移除学位备案表的蓝色边框，只保留底纹背景 */
+            .degree-report-bg {
+                background-image: url('https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/0b8005ed412444bab331b31ee5066c8a.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=20260323120703780E9483EEF7A0EAB6E5&rrcfp=8a172a1a&x-expires=1774843623&x-signature=FZpCsY2tl8Yv2MoJn4Tg%2BHM4B84%3D');
+                background-size: 100% 100%;
+                background-repeat: no-repeat;
+                background-position: center;
+                position: relative;
+                overflow: hidden;
+                min-height: 900px;
+                padding: 60px 80px !important;
+                /* 移除了蓝色边框和圆角 */
+            }
+            /* 关键修复：完善激活项样式，修正右侧竖线颜色，取消字体加粗 */
+            .sidebar-item-active {
+                @apply bg-white text-xuexin-active border-r-4 border-xuexin-activeBorder outline-none ring-0 font-normal;
+            }
+            .id-photo {
+                object-fit: cover;
+                border: 1px solid #ccc;
+                background: white;
+            }
+            .report-logo {
+                position: absolute;
+                bottom: 40px;
+                right: 40px;
+                height: 24px;
+                width: auto;
+            }
+            .update-date {
+                text-align: center !important;
+                display: block;
+            }
+            /* 邮箱弹窗样式 */
+            .email-modal {
+                position: absolute;
+                top: 100%;
+                right: 0;
+                z-index: 1000;
+                width: 280px;
+                background: white;
+                border: 1px solid #e2e8f0;
+                border-radius: 4px;
+                box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+                padding: 16px;
+                margin-top: 8px;
+                display: none;
+            }
+            .email-modal::before {
+                content: '';
+                position: absolute;
+                top: -8px;
+                right: 16px;
+                width: 16px;
+                height: 16px;
+                background: white;
+                border-top: 1px solid #e2e8f0;
+                border-right: 1px solid #e2e8f0;
+                transform: rotate(-45deg);
+            }
+            .email-modal.active {
+                display: block;
+            }
+            .email-btn-container {
+                position: relative;
+            }
+            /* 内容页面样式 */
+            .content-page {
+                display: none;
+            }
+            .content-page.active {
+                display: block;
+            }
+            /* 图片样式优化 */
+            .intro-img {
+                height: 100px;
+                width: auto;
+                object-fit: contain;
+                display: block;
+                margin: 0 auto;
+            }
+            .usage-img {
+                max-width: 100%;
+                height: auto;
+                margin: 1rem 0;
+                border: 1px solid #eee;
+            }
+            /* 新增：段落首行缩进2个字 */
+            .text-indent {
+                text-indent: 2em;
+            }
+            /* 调整侧边栏hover样式 */
+            .nav-item:hover {
+                @apply bg-xuexin-sidebar text-xuexin-navHover transition-colors;
+            }
+            /* 橙色字体样式（替代红色） */
+            .text-orange-600 {
+                color: #f97316;
+            }
+            /* 关键修改2：全局移除所有元素的焦点红框 */
+            *:focus {
+                outline: none !important;
+                box-shadow: none !important;
+            }
+            /* 备案表展示页面专用样式 */
+            .report-display-container {
+                display: flex;
+                justify-content: center;
+                padding: 20px 0;
+            }
+            .report-display-card {
+                max-width: 800px;
+                width: 100%;
+            }
+            /* 新增：查询页面样式 */
+            .query-page {
+                padding: 2rem;
+                max-width: 800px;
+                margin: 0 auto;
+            }
+            .query-tip {
+                background-color: #fff7e6;
+                border-left: 4px solid #ff9f43;
+                padding: 1rem;
+                margin-bottom: 2rem;
+                color: #e67700;
+                font-size: 0.875rem;
+            }
+            .query-form {
+                margin-bottom: 2rem;
+            }
+            .query-input {
+                padding: 0.5rem;
+                border: 1px solid #d1d5db;
+                width: 300px;
+                margin-right: 0.5rem;
+            }
+            .query-btn {
+                background-color: #0099cc;
+                color: white;
+                padding: 0.5rem 1rem;
+                border: none;
+                cursor: pointer;
+            }
+            .query-btn:hover {
+                background-color: #0086b3;
+            }
+            .query-links {
+                display: flex;
+                gap: 2rem;
+                margin-top: 2rem;
+            }
+            .query-link-card {
+                border: 1px solid #e5e7eb;
+                padding: 1rem;
+                flex: 1;
+                text-align: center;
+            }
+            .query-link-card a {
+                color: #0099cc;
+                text-decoration: none;
+            }
+            .query-link-card a:hover {
+                text-decoration: underline;
+            }
+            /* 新增：顶部导航在线验证项高亮样式（点击后） */
+            .top-nav-active {
+                background: rgba(255, 255, 255, 0.1);
+            }
+        }
+    </style>
+    
+    <script>
+        // 初始化EmailJS
+        emailjs.init('YOUR_USER_ID');
+        
+        // 等待页面加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            // 导航切换功能
+            const navItems = document.querySelectorAll('.nav-item');
+            const contentPages = document.querySelectorAll('.content-page');
+            
+            // 修改：默认显示第一个页面（在线验证/备案表展示）
+            navItems[0].classList.add('sidebar-item-active');
+            contentPages[0].classList.add('active');
+            
+            // 导航点击事件 - 优化交互逻辑
+            navItems.forEach((item, index) => {
+                item.addEventListener('click', function() {
+                    // 移除所有激活状态
+                    navItems.forEach(nav => {
+                        nav.classList.remove('sidebar-item-active');
+                        // 重置非激活项的字体样式
+                        nav.classList.remove('font-medium');
+                    });
+                    contentPages.forEach(page => page.classList.remove('active'));
+                    
+                    // 添加当前激活状态
+                    this.classList.add('sidebar-item-active');
+                    contentPages[index].classList.add('active');
+                    
+                    // 确保点击后页面滚动到顶部
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                    
+                    // 重置顶部导航栏在线验证项的高亮状态
+                    const topOnlineVerificationLink = document.getElementById('top-online-verification-link');
+                    if (topOnlineVerificationLink) {
+                        topOnlineVerificationLink.classList.remove('top-nav-active');
+                    }
+                });
+            });
+            
+            // 邮箱弹窗功能
+            const emailBtn = document.getElementById('email-btn');
+            const emailModal = document.getElementById('email-modal');
+            const sendEmailBtn = document.getElementById('send-email-btn');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const emailInput = document.getElementById('email-input');
+            
+            emailBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                emailModal.classList.toggle('active');
+            });
+            
+            closeModalBtn.addEventListener('click', function() {
+                emailModal.classList.remove('active');
+            });
+            
+            document.addEventListener('click', function(e) {
+                if (!emailModal.contains(e.target) && e.target !== emailBtn) {
+                    emailModal.classList.remove('active');
+                }
+            });
+            
+            // 打印功能
+            const printBtn = document.getElementById('print-btn');
+            printBtn.addEventListener('click', function() {
+                const reportElement = document.getElementById('report-container');
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                    <head>
+                        <title>教育部学历证书电子注册备案表</title>
+                        <!-- 打印页面也引入思源黑体 -->
+                        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+                        <style>
+                            body { font-family: 'Noto Sans SC', sans-serif; }
+                            .report-bg {
+                                background-image: url('https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/0b8005ed412444bab331b31ee5066c8a.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=20260323120703780E9483EEF7A0EAB6E5&rrcfp=8a172a1a&x-expires=1774843623&x-signature=FZpCsY2tl8Yv2MoJn4Tg%2BHM4B84%3D');
+                                background-size: 100% 100%;
+                                background-repeat: no-repeat;
+                                background-position: center;
+                                padding: 60px 80px;
+                                min-height: 900px;
+                                position: relative;
+                            }
+                            .degree-report-bg {
+                                background-image: url('https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/0b8005ed412444bab331b31ee5066c8a.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=20260323120703780E9483EEF7A0EAB6E5&rrcfp=8a172a1a&x-expires=1774843623&x-signature=FZpCsY2tl8Yv2MoJn4Tg%2BHM4B84%3D');
+                                background-size: 100% 100%;
+                                background-repeat: no-repeat;
+                                background-position: center;
+                                padding: 60px 80px;
+                                min-height: 900px;
+                                position: relative;
+                                /* 打印样式中也移除蓝色边框 */
+                            }
+                            .update-date { text-align: center; display: block; margin-bottom: 2rem; }
+                            table { width: 70%; margin-right: 2rem; }
+                            td { padding: 0.5rem; }
+                            .id-photo { width: 6rem; height: 8rem; object-fit: cover; border: 1px solid #ccc; }
+                            .report-logo { position: absolute; bottom: 40px; right: 40px; height: 24px; width: auto; }
+                        </style>
+                    </head>
+                    <body>
+                        ${reportElement.innerHTML}
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.focus();
+                printWindow.print();
+                printWindow.close();
+            });
+            
+            // PDF生成函数
+            const generatePDF = async () => {
+                const reportElement = document.getElementById('report-container');
+                const { jsPDF } = window.jspdf;
+                
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+                
+                const canvas = await html2canvas(reportElement, {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff'
+                });
+                
+                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                const imgWidth = 210;
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+                
+                pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+                
+                return pdf.output('datauristring').split(',')[1];
+            };
+            
+            // 下载PDF功能
+            const downloadBtn = document.getElementById('download-btn');
+            downloadBtn.addEventListener('click', async function() {
+                try {
+                    this.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+                    this.disabled = true;
+                    
+                    const pdfBase64 = await generatePDF();
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF();
+                    pdf.addImage(`data:image/jpeg;base64,${pdfBase64}`, 'JPEG', 0, 0, 210, 297);
+                    pdf.save('教育部学历证书电子注册备案表.pdf');
+                    
+                } catch (error) {
+                    alert('PDF下载失败：' + error.message);
+                } finally {
+                    this.innerHTML = '<i class="fa fa-download"></i>';
+                    this.disabled = false;
+                }
+            });
+            
+            // 发送邮件功能
+            sendEmailBtn.addEventListener('click', async function() {
+                const email = emailInput.value.trim();
+                
+                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    alert('请输入有效的邮箱地址');
+                    return;
+                }
+                
+                try {
+                    this.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 发送中';
+                    this.disabled = true;
+                    
+                    const pdfBase64 = await generatePDF();
+                    
+                    const templateParams = {
+                        to_email: email,
+                        subject: '教育部学历证书电子注册备案表',
+                        message: '您好，附件是您的学历证书电子注册备案表，请查收。',
+                        pdf_attachment: [
+                            {
+                                data: pdfBase64,
+                                filename: '教育部学历证书电子注册备案表.pdf',
+                                type: 'application/pdf',
+                                disposition: 'attachment'
+                            }
+                        ]
+                    };
+                    
+                    await emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', templateParams);
+                    
+                    alert('PDF已成功发送至邮箱：' + email);
+                    emailModal.classList.remove('active');
+                    emailInput.value = '';
+                    
+                } catch (error) {
+                    console.error('发送邮件失败：', error);
+                    alert('邮件发送失败，请稍后重试：' + error.message);
+                } finally {
+                    this.innerHTML = '发送PDF';
+                    this.disabled = false;
+                }
+            });
+
+            // ========== 学历查询功能 ==========
+            // 1. 获取关键元素
+            const educationQueryLink = document.getElementById('education-query-link');
+            const verificationCodeInput = document.getElementById('verification-code-input');
+            const verificationQueryBtn = document.getElementById('verification-query-btn');
+            const onlineVerificationPage = document.getElementById('online-verification-page');
+            const verificationQueryPage = document.getElementById('verification-query-page');
+            
+            // 2. 点击学历查询跳转到查询页面
+            educationQueryLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                // 隐藏所有内容页面
+                contentPages.forEach(page => page.classList.remove('active'));
+                // 显示查询页面
+                verificationQueryPage.classList.add('active');
+                // 重置导航激活状态
+                navItems.forEach(nav => nav.classList.remove('sidebar-item-active'));
+                // 重置顶部导航在线验证项高亮
+                const topOnlineVerificationLink = document.getElementById('top-online-verification-link');
+                if (topOnlineVerificationLink) {
+                    topOnlineVerificationLink.classList.remove('top-nav-active');
+                }
+                // 滚动到顶部
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+            
+            // 3. 学历验证码查询功能
+            verificationQueryBtn.addEventListener('click', function() {
+                const inputCode = verificationCodeInput.value.trim();
+                // 验证验证码是否正确
+                if (inputCode === 'ABWJLE1420413GSQ') {
+                    // 隐藏查询页面
+                    verificationQueryPage.classList.remove('active');
+                    // 显示在线验证页面
+                    onlineVerificationPage.classList.add('active');
+                    // 激活第一个导航项
+                    navItems[0].classList.add('sidebar-item-active');
+                    // 激活顶部导航在线验证项
+                    const topOnlineVerificationLink = document.getElementById('top-online-verification-link');
+                    if (topOnlineVerificationLink) {
+                        topOnlineVerificationLink.classList.add('top-nav-active');
+                    }
+                    // 清空输入框
+                    verificationCodeInput.value = '';
+                    // 滚动到顶部
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else if (inputCode === '') {
+                    alert('请输入在线验证码');
+                } else {
+                    alert('验证码输入错误，请重新输入');
+                }
+            });
+            
+            // 4. 学历查询按回车键也能查询
+            verificationCodeInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    verificationQueryBtn.click();
+                }
+            });
+
+            // ========== 新增：学位查询功能 ==========
+            // 1. 获取学位查询相关元素
+            const degreeQueryLink = document.getElementById('degree-query-link');
+            const degreeCodeInput = document.getElementById('degree-code-input');
+            const degreeQueryBtn = document.getElementById('degree-query-btn');
+            const degreeReportPage = document.getElementById('degree-report-page');
+            const degreeQueryPage = document.getElementById('degree-query-page');
+            
+            // 2. 点击学位查询跳转到学位查询页面
+            degreeQueryLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                // 隐藏所有内容页面
+                contentPages.forEach(page => page.classList.remove('active'));
+                // 显示学位查询页面
+                degreeQueryPage.classList.add('active');
+                // 重置导航激活状态
+                navItems.forEach(nav => nav.classList.remove('sidebar-item-active'));
+                // 重置顶部导航在线验证项高亮
+                const topOnlineVerificationLink = document.getElementById('top-online-verification-link');
+                if (topOnlineVerificationLink) {
+                    topOnlineVerificationLink.classList.remove('top-nav-active');
+                }
+                // 滚动到顶部
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+            
+            // 3. 学位验证码查询功能
+            degreeQueryBtn.addEventListener('click', function() {
+                const inputCode = degreeCodeInput.value.trim();
+                // 验证学位验证码是否正确
+                if (inputCode === 'ABWJLE142041SQSQ') {
+                    // 隐藏查询页面
+                    degreeQueryPage.classList.remove('active');
+                    // 显示学位备案表页面
+                    degreeReportPage.classList.add('active');
+                    // 激活第一个导航项
+                    navItems[0].classList.add('sidebar-item-active');
+                    // 激活顶部导航在线验证项
+                    const topOnlineVerificationLink = document.getElementById('top-online-verification-link');
+                    if (topOnlineVerificationLink) {
+                        topOnlineVerificationLink.classList.add('top-nav-active');
+                    }
+                    // 清空输入框
+                    degreeCodeInput.value = '';
+                    // 滚动到顶部
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else if (inputCode === '') {
+                    alert('请输入学位在线验证码');
+                } else {
+                    alert('学位验证码输入错误，请重新输入');
+                }
+            });
+            
+            // 4. 学位查询按回车键也能查询
+            degreeCodeInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    degreeQueryBtn.click();
+                }
+            });
+
+            // ========== 核心修改：顶部导航栏在线验证点击事件 ==========
+            // 获取顶部导航栏的在线验证元素并添加点击事件
+            const topOnlineVerificationLink = document.getElementById('top-online-verification-link');
+            if (topOnlineVerificationLink) {
+                topOnlineVerificationLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // 添加点击后的高亮效果
+                    this.classList.add('top-nav-active');
+                    
+                    // 隐藏所有内容页面
+                    contentPages.forEach(page => page.classList.remove('active'));
+                    // 显示在线验证页面
+                    onlineVerificationPage.classList.add('active');
+                    // 重置导航激活状态
+                    navItems.forEach(nav => nav.classList.remove('sidebar-item-active'));
+                    // 激活第一个侧边栏导航项
+                    navItems[0].classList.add('sidebar-item-active');
+                    // 滚动到顶部
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+                
+                // 初始化时给顶部在线验证项添加高亮（匹配截图效果）
+                topOnlineVerificationLink.classList.add('top-nav-active');
+            }
+        });
+    </script>
+</head>
+<body class="bg-white font-sans text-gray-800">
+    <!-- 顶部头部 -->
+    <header class="bg-white border-b border-gray-200 py-2">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <div class="flex items-center">
+                <img src="https://p26-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/76c8164076544704a1d184fcbb96746a.PNG~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=20260323120541AF88ECC8E3356B793746&rrcfp=8a172a1a&x-expires=1774843542&x-signature=UxV2HTtPAG%2F%2BRjYViNzKqZA6nPg%3D" alt="CHSI Logo" class="h-10 mr-2">
+                <div>
+                    <h1 class="text-lg font-bold">中国高等教育学生信息网（学信网）</h1>
+                    <p class="text-xs text-gray-500">教育部学历查询网站、教育部高校招生阳光工程指定网站、全国硕士研究生招生报名和调剂指定网站</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <input type="text" placeholder="" class="border border-gray-300 px-2 py-1 text-sm w-48">
+                <button class="p-1 text-gray-600"><i class="fa fa-search"></i></button>
+                <a href="#" class="text-sm text-gray-600 hover:text-xuexin-navHover">注册</a>
+                <a href="#" class="text-sm text-gray-600 hover:text-xuexin-navHover">登录</a>
+                <a href="#" class="text-sm text-gray-600 hover:text-xuexin-navHover">English</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 导航栏 -->
+    <nav class="bg-xuexin-primary text-white">
+        <div class="container mx-auto px-4">
+            <ul class="flex text-sm">
+                <li class="px-3 py-3 hover:bg-opacity-80 transition-colors">首页</li>
+                <li class="px-3 py-3 hover:bg-opacity-80 transition-colors">学籍查询</li>
+                <!-- 修改：为学历查询添加ID，用于点击跳转 -->
+                <li id="education-query-link" class="px-3 py-3 hover:bg-opacity-80 transition-colors bg-white/10 cursor-pointer">学历查询</li>
+                <!-- 新增：为学位查询添加ID，用于点击跳转 -->
+                <li id="degree-query-link" class="px-3 py-3 hover:bg-opacity-80 transition-colors bg-white/10 cursor-pointer">学位查询</li>
+                <!-- 关键修改1：为在线验证添加ID，用于绑定点击事件 -->
+                <li id="top-online-verification-link" class="px-3 py-3 hover:bg-opacity-80 transition-colors cursor-pointer">在线验证</li>
+                <li class="px-3 py-3 hover:bg-opacity-80 transition-colors">出国教育背景信息服务</li>
+                <li class="px-3 py-3 hover:bg-opacity-80 transition-colors">图像校对</li>
+                <li class="px-3 py-3 hover:bg-opacity-80 transition-colors">学信档案</li>
+                <li class="px-3 py-3 hover:bg-opacity-80 transition-colors">高考</li>
+                <li class="px-3 py-3 hover:bg-opacity-80 transition-colors">研招</li>
+                <li class="px-3 py-3 hover:bg-opacity-80 transition-colors">港澳台招生</li>
+                <li class="px-3 py-3 hover:bg-opacity-80 transition-colors">征兵</li>
+                <li class="px-3 py-3 hover:bg-opacity-80 transition-colors">就业</li>
+                <li class="px-3 py-3 hover:bg-opacity-80 transition-colors">学职平台</li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- 主要内容区 -->
+    <main class="container mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
+        <!-- 侧边栏 -->
+        <aside class="w-full md:w-64 bg-white">
+            <div class="border border-gray-200 rounded-sm">
+                <ul>
+                    <!-- 修改1：将"备案表展示"改为"在线验证"并移到第一个位置 -->
+                    <li class="nav-item px-4 py-3 text-sm hover:bg-xuexin-sidebar transition-colors">在线验证</li>
+                    <li class="nav-item px-4 py-3 text-sm">验证报告简介</li>
+                    <li class="nav-item px-4 py-3 text-sm hover:bg-xuexin-sidebar transition-colors">防伪措施</li>
+                    <li class="nav-item px-4 py-3 text-sm hover:bg-xuexin-sidebar transition-colors">验证真伪</li>
+                    <li class="nav-item px-4 py-3 text-sm hover:bg-xuexin-sidebar transition-colors">特点和用途</li>
+                    <li class="nav-item px-4 py-3 text-sm hover:bg-xuexin-sidebar transition-colors">如何申请</li>
+                    <li class="nav-item px-4 py-3 text-sm hover:bg-xuexin-sidebar transition-colors">如何使用</li>
+                    <li class="nav-item px-4 py-3 text-sm hover:bg-xuexin-sidebar transition-colors">延长验证有效期</li>
+                    <li class="nav-item px-4 py-3 text-sm hover:bg-xuexin-sidebar transition-colors">特别声明</li>
+                </ul>
+            </div>
+            <div class="mt-6 border border-gray-200 p-4">
+                <h3 class="font-bold text-sm mb-2">重要告知</h3>
+                <p class="text-xs text-gray-600 text-indent">关于调整学籍/学历/学位在线验证报告翻译件和学位认证报告翻译件的说明</p>
+                <p class="text-xs text-gray-500 mt-1">2023-05-18</p>
+            </div>
+        </aside>
+
+        <!-- 主体内容 -->
+        <section class="flex-1 bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">学籍/学历/学位在线验证报告</h2>
+                <div class="flex items-center gap-2 text-sm">
+                    <span>报告语种</span>
+                    <button class="px-2 py-1 bg-xuexin-primary text-white rounded-sm">中文</button>
+                    <button class="px-2 py-1 border border-gray-300 rounded-sm">英文</button>
+                    <div class="flex gap-1">
+                        <button id="print-btn" class="p-1 border border-gray-300 rounded-sm hover:bg-gray-100 transition-colors">
+                            <i class="fa fa-print"></i>
+                        </button>
+                        <button id="download-btn" class="p-1 border border-gray-300 rounded-sm hover:bg-gray-100 transition-colors">
+                            <i class="fa fa-download"></i>
+                        </button>
+                        <div class="email-btn-container">
+                            <button id="email-btn" class="p-1 border border-gray-300 rounded-sm hover:bg-gray-100 transition-colors">
+                                <i class="fa fa-envelope"></i>
+                            </button>
+                            <div id="email-modal" class="email-modal">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="font-medium text-sm">发送PDF到邮箱</h3>
+                                    <button id="close-modal-btn" class="text-gray-500 hover:text-gray-700">
+                                        <i class="fa fa-times text-xs"></i>
+                                    </button>
+                                </div>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-xs text-gray-600 mb-1">接收邮箱</label>
+                                        <input 
+                                            type="email" 
+                                            id="email-input" 
+                                            placeholder="请输入邮箱地址"
+                                            class="w-full px-2 py-1 border border-gray-300 rounded-sm text-sm focus:outline-none focus:ring-1 focus:ring-xuexin-primary"
+                                        >
+                                    </div>
+                                    <button 
+                                        id="send-email-btn" 
+                                        class="w-full bg-xuexin-primary text-white py-1.5 rounded-sm text-sm hover:bg-opacity-90 transition-colors"
+                                    >
+                                        发送PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="p-1 border border-gray-300 rounded-sm"><i class="fa fa-camera"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1. 在线验证页面（原备案表展示页面）- 添加ID用于定位 -->
+            <div id="online-verification-page" class="content-page active">
+                <h3 class="text-lg font-bold text-center mb-6">教育部学历证书电子注册备案表</h3>
+                <div class="report-display-container">
+                    <div class="report-display-card">
+                        <div id="report-container" class="report-bg relative">
+                            <h2 class="text-center text-2xl font-bold mb-6">教育部学历证书电子注册备案表</h2>
+                            <p class="update-date text-sm text-gray-600 mb-8">更新日期：2026年03月23日</p>
+                            
+                            <div class="flex justify-between mb-8">
+                                <table class="text-sm w-2/3">
+                                    <tbody>
+                                        <tr>
+                                            <td class="py-2 w-1/4 text-gray-700 font-medium">姓名</td>
+                                            <td class="py-2">邹术</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">证件号码</td>
+                                            <td class="py-2">430421199706100092</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">毕（结）业日期</td>
+                                            <td class="py-2">2018年6月20日</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">学校名称</td>
+                                            <td class="py-2">湖南信息学院</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">专业</td>
+                                            <td class="py-2">视觉传达设计</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">层次</td>
+                                            <td class="py-2">本科</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">学历类别</td>
+                                            <td class="py-2">高等教育自学考试</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">毕（结）业</td>
+                                            <td class="py-2">毕业</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">证书编号</td>
+                                            <td class="py-2">6644 0301 2230 7072 0</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <div class="w-1/4 flex justify-center">
+                                    <img src="https://p3-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/d26b8b4d315e4a1c8b97112b108d48bd.jpg~tplv-a9rns2rl98-24:720:720.jpg?lk3s=8e244e95&rcl=2026032312085650EDB7B88699CFF0C065&rrcfp=8a172a1a&x-expires=1774843736&x-signature=t%2Fs%2Bt40%2FY1OMM51wLz1B8Ah5u%2Fg%3D" 
+                                         alt="证件照" 
+                                         class="id-photo w-24 h-32">
+                                </div>
+                            </div>
+
+                            <div class="mt-10 border border-green-500 p-5 flex items-center gap-5 bg-white/80 rounded-sm">
+                                <!-- 关键修改2：更新二维码链接为新地址 -->
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://xuexiner.github.io/xuexin-site/" alt="二维码" class="w-28 h-28">
+                                <div class="text-sm">
+                                    <p class="mb-2 font-medium">在线验证码 <span class="font-bold text-green-700">ABWJLE1420413GSQ</span></p>
+                                    <!-- 关键修改3：更新验证报告查询网址 -->
+                                    <p class="mb-2">①验证报告在线查询网址：https://xuexiner.github.io/xuexin-site/</p>
+                                    <p>②使用学信网App扫描二维码验证</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-8 text-xs text-gray-700 bg-white/70 p-4 rounded-sm">
+                                <p class="font-bold mb-2">注意事项：</p>
+                                <p class="mb-1 text-indent">1、备案表是依据《高等学校学生学籍学历电子注册办法》(教学〔2014〕11号)对学历证书电子注册复核备案的结果。</p>
+                                <p class="mb-1 text-indent">2、备案表内容如有修改，请以最新在线验证的内容为准。</p>
+                                <p class="mb-1 text-indent">3、未经学历信息权属人同意，不得将备案表用于违背权属人意愿之用途。</p>
+                                <p class="text-indent">4、报告在线验证有效期由报告权属人设置（1-6个月），其在报告验证到期前可再次延长验证有效期。</p>
+                            </div>
+                            
+                            <img src="https://p26-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/76c8164076544704a1d184fcbb96746a.PNG~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=20260323120541AF88ECC8E3356B793746&rrcfp=8a172a1a&x-expires=1774843542&x-signature=UxV2HTtPAG%2F%2BRjYViNzKqZA6nPg%3D" 
+                                 alt="CHSI" 
+                                 class="report-logo">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 新增：学位备案表展示页面 -->
+            <div id="degree-report-page" class="content-page">
+                <!-- 核心修改1：标题改为学位在线验证报告 -->
+                <h3 class="text-lg font-bold text-center mb-6">中国高等教育学位在线验证报告</h3>
+                <div class="report-display-container">
+                    <div class="report-display-card">
+                        <div id="report-container" class="degree-report-bg relative">
+                            <!-- 核心修改2：主标题更新 -->
+                            <h2 class="text-center text-2xl font-bold mb-6">中国高等教育学位在线验证报告</h2>
+                            <p class="update-date text-sm text-gray-600 mb-8">更新日期：2026年03月10日</p>
+                            
+                            <div class="flex justify-between mb-8">
+                                <!-- 核心修改3：表格内容完全替换为学位信息 -->
+                                <table class="text-sm w-2/3">
+                                    <tbody>
+                                        <tr>
+                                            <td class="py-2 w-1/4 text-gray-700 font-medium">姓名</td>
+                                            <td class="py-2">邹术</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">性别</td>
+                                            <td class="py-2">男</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">出生日期</td>
+                                            <td class="py-2">1997年06月10日</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">获学位日期</td>
+                                            <td class="py-2">2018年6月20日</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">学位授予单位</td>
+                                            <td class="py-2">湖南信息学院</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">所授学位</td>
+                                            <td class="py-2">艺术学学士学位</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">学科专业</td>
+                                            <td class="py-2">视觉传达设计</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-2 text-gray-700 font-medium">学位证书编号</td>
+                                            <td class="py-2">1383620180721222</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <div class="w-1/4 flex justify-center">
+                                    <img src="https://p3-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/d26b8b4d315e4a1c8b97112b108d48bd.jpg~tplv-a9rns2rl98-24:720:720.jpg?lk3s=8e244e95&rcl=2026032312085650EDB7B88699CFF0C065&rrcfp=8a172a1a&x-expires=1774843736&x-signature=t%2Fs%2Bt40%2FY1OMM51wLz1B8Ah5u%2Fg%3D" 
+                                         alt="证件照" 
+                                         class="id-photo w-24 h-32">
+                                </div>
+                            </div>
+
+                            <!-- 核心修改4：更新学位验证码和查询网址 -->
+                            <div class="mt-10 border border-green-500 p-5 flex items-center gap-5 bg-white/80 rounded-sm">
+                                <!-- 关键修改4：更新学位二维码链接为新地址 -->
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://xuexiner.github.io/xuexin-site/" alt="二维码" class="w-28 h-28">
+                                <div class="text-sm">
+                                    <p class="mb-2 font-medium">在线验证码 <span class="font-bold text-green-700">ABWJLE142041SQSQ</span></p>
+                                    <!-- 关键修改5：更新学位验证报告查询网址 -->
+                                    <p class="mb-2">①验证报告在线查询网址：https://xuexiner.github.io/xuexin-site/</p>
+                                    <p>②使用学信网App扫描二维码验证</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-8 text-xs text-gray-700 bg-white/70 p-4 rounded-sm">
+                                <p class="font-bold mb-2">注意事项：</p>
+                                <p class="mb-1 text-indent">1、备案表是依据《高等学校学生学籍学历电子注册办法》(教学〔2014〕11号)对学历证书电子注册复核备案的结果。</p>
+                                <p class="mb-1 text-indent">2、备案表内容如有修改，请以最新在线验证的内容为准。</p>
+                                <p class="mb-1 text-indent">3、未经学历信息权属人同意，不得将备案表用于违背权属人意愿之用途。</p>
+                                <p class="text-indent">4、报告在线验证有效期由报告权属人设置（1-6个月），其在报告验证到期前可再次延长验证有效期。</p>
+                            </div>
+                            
+                            <img src="https://p26-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/76c8164076544704a1d184fcbb96746a.PNG~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=20260323120541AF88ECC8E3356B793746&rrcfp=8a172a1a&x-expires=1774843542&x-signature=UxV2HTtPAG%2F%2BRjYViNzKqZA6nPg%3D" 
+                                 alt="CHSI" 
+                                 class="report-logo">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 学历验证码查询页面 -->
+            <div id="verification-query-page" class="content-page query-page">
+                <h3 class="text-lg font-bold mb-6">学籍/学历/学位在线验证报告查询</h3>
+                
+                <!-- 温馨提示 -->
+                <div class="query-tip">
+                    <p class="font-medium mb-1">关于免费申请学籍、学历电子验证报告的温馨提示</p>
+                    <p>为贯彻落实国务院常务会议精神，方便群众办事，减轻群众负担，自2018年1月1日起，学信网将对《教育部学籍在线验证报告》及《教育部学历证书电子注册备案表》提供免费申请服务。</p>
+                </div>
+                
+                <!-- 查询表单 -->
+                <div class="query-form">
+                    <label class="block mb-2">报告中的在线验证码</label>
+                    <div class="flex items-center">
+                        <input 
+                            type="text" 
+                            id="verification-code-input" 
+                            class="query-input"
+                            placeholder="请输入在线验证码"
+                        >
+                        <button id="verification-query-btn" class="query-btn">查询</button>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2">
+                        2019年3月15日起，新申请的《教育部学籍在线验证报告》及《教育部学历证书电子注册备案表》的在线验证码升级为16位。<br>
+                        2025年3月27日起，启用新版《教育部学籍在线验证报告》，点此查看新旧版报告样式对比。
+                    </p>
+                </div>
+                
+                <!-- 提供的验证 -->
+                <div class="mb-6">
+                    <h4 class="font-medium mb-2">提供的验证</h4>
+                    <ol class="list-decimal pl-6">
+                        <li>《教育部学籍在线验证报告》（含中文版和翻译件（英文））</li>
+                        <li>《教育部学历证书电子注册备案表》（含中文版和翻译件（英文））</li>
+                        <li>《中国高等教育学位在线验证报告》（含中文版和翻译件（英文））</li>
+                    </ol>
+                </div>
+                
+                <!-- 查询链接 -->
+                <div class="query-links">
+                    <div class="query-link-card">
+                        <a href="#">国内学历认证报告查询 ></a>
+                    </div>
+                    <div class="query-link-card">
+                        <a href="#">国内学位认证报告查询 ></a>
+                    </div>
+                </div>
+                
+                <div class="query-link-card mt-4">
+                    <a href="#">"双千"计划"微专业"学习成果备案表查询 ></a>
+                </div>
+                
+                <!-- 返回首页按钮 -->
+                <div class="text-center mt-6">
+                    <button onclick="window.scrollTo({top:0,behavior:'smooth'});" class="px-4 py-2 border border-gray-300 rounded-sm text-sm hover:bg-gray-50">
+                        返回首页
+                    </button>
+                </div>
+            </div>
+
+            <!-- 新增：学位验证码查询页面 -->
+            <div id="degree-query-page" class="content-page query-page">
+                <h3 class="text-lg font-bold mb-6">学位在线验证报告查询</h3>
+                
+                <!-- 温馨提示 -->
+                <div class="query-tip">
+                    <p class="font-medium mb-1">关于免费申请学位电子验证报告的温馨提示</p>
+                    <p>为贯彻落实国务院常务会议精神，方便群众办事，减轻群众负担，自2018年1月1日起，学信网将对《中国高等教育学位在线验证报告》提供免费申请服务。</p>
+                </div>
+                
+                <!-- 查询表单 -->
+                <div class="query-form">
+                    <label class="block mb-2">报告中的学位在线验证码</label>
+                    <div class="flex items-center">
+                        <input 
+                            type="text" 
+                            id="degree-code-input" 
+                            class="query-input"
+                            placeholder="请输入学位在线验证码"
+                        >
+                        <button id="degree-query-btn" class="query-btn">查询</button>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2">
+                        2019年3月15日起，新申请的《中国高等教育学位在线验证报告》的在线验证码升级为16位。<br>
+                        2025年3月27日起，启用新版《中国高等教育学位在线验证报告》，点此查看新旧版报告样式对比。
+                    </p>
+                </div>
+                
+                <!-- 提供的验证 -->
+                <div class="mb-6">
+                    <h4 class="font-medium mb-2">提供的验证</h4>
+                    <ol class="list-decimal pl-6">
+                        <li>《中国高等教育学位在线验证报告》（含中文版和翻译件（英文））</li>
+                        <li>《教育部学历证书电子注册备案表（学历证明书）》</li>
+                    </ol>
+                </div>
+                
+                <!-- 查询链接 -->
+                <div class="query-links">
+                    <div class="query-link-card">
+                        <a href="#">国内学位认证报告查询 ></a>
+                    </div>
+                    <div class="query-link-card">
+                        <a href="#">国外学历学位认证查询 ></a>
+                    </div>
+                </div>
+                
+                <!-- 返回首页按钮 -->
+                <div class="text-center mt-6">
+                    <button onclick="window.scrollTo({top:0,behavior:'smooth'});" class="px-4 py-2 border border-gray-300 rounded-sm text-sm hover:bg-gray-50">
+                        返回首页
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. 验证报告简介页面 -->
+            <div class="content-page">
+                <h3 class="text-lg font-bold text-center mb-6">学籍/学历/学位在线验证报告简介</h3>
+                <div class="text-sm leading-relaxed mb-6">
+                    <ul class="list-disc pl-6 mb-4">
+                        <li>《教育部学历证书电子注册备案表》（中文版/翻译件(英文)）</li>
+                        <li>《教育部学籍在线验证报告》（中文版/翻译件(英文)）</li>
+                        <li>《中国高等教育学位在线验证报告》（中文版/翻译件(英文)）</li>
+                    </ul>
+                    
+                    <p class="mb-4 text-indent">
+                        为满足求职招聘、派遣接收、升学(考研、专升本)、出国留学、出境学习、干部任免、职称评定、信用评估等领域的需要，学信网依托全国高等教育学生信息数据库，面向学籍学历学位信息权属人、社会其他部门及个人提供了学籍、学历、学位网上查询服务，并在此基础上提供了权威、便捷的在线验证服务，包括：《教育部学历证书电子注册备案表》、《教育部学籍在线验证报告》、《中国高等教育学位在线验证报告》。
+                    </p>
+                    
+                    <p class="mb-4 text-indent">
+                        学籍学历学位信息权属人可以通过学信档案申请验证报告。验证报告可直接在线打印，或下载保存PDF格式电子版，还可将PDF电子版作为附件发送到指定邮箱。
+                    </p>
+                    
+                    <p class="mb-4 text-indent">
+                        在验证有效期内，学籍学历学位信息权属人、社会其他部门及个人可以通过网站的在线验证系统或点击验证报告（电子邮件）中的"点击此处"，免费验证报告的内容，也可以使用学信网手机App或"学信网报告在线验证"微信小程序，扫描报告中的二维码进行验证。
+                    </p>
+                    
+                    <p class="mb-4 text-indent">
+                        报告可在验证有效期内多次验证。学籍学历学位信息权属人可在报告到期前一个月内或到期后，通过学信档案延长验证有效期。
+                    </p>
+                </div>
+                
+                <!-- 样式展示区 -->
+                <div class="space-y-8">
+                    <div>
+                        <p class="text-sm font-medium mb-3 text-indent">《教育部学历证书电子注册备案表》样式：</p>
+                        <div class="flex flex-wrap justify-center items-end gap-6">
+                            <div class="text-center">
+                                <img src="https://p3-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/92da8b43112e4f658d58f22fb7663774.png~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=20260326132610848EDB330808A1EA4CB9&rrcfp=8a172a1a&x-expires=1775107571&x-signature=3NSBZ8JcILxqvhRB7%2BtsGxxsfQo%3D" alt="打印版" class="intro-img">
+                                <p class="text-xs mt-1">i 打印版</p>
+                            </div>
+                            <div class="text-center">
+                                <img src="https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/ff4eb4ba1c83471db7d9b9453f45b9d6.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=20260326132757DD37CCA95EB772CD7FF0&rrcfp=8a172a1a&x-expires=1775107677&x-signature=m6LCcrNCKPsIoyfR0nDa7EoV3i0%3D" alt="电子邮件格式" class="intro-img">
+                                <p class="text-xs mt-1">ii 电子邮件(html格式)</p>
+                            </div>
+                            <div class="text-center">
+                                <img src="https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/ea656807d3514899ae2d0c7ff016dd5c.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=20260326132757DD37CCA95EB772CD7FF0&rrcfp=8a172a1a&x-expires=1775107677&x-signature=YUgmslYs%2BJhgnt41Ka8A4z2%2Fxx0%3D" alt="PDF电子文档" class="intro-img">
+                                <p class="text-xs mt-1">iii PDF电子文档</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <p class="text-sm font-medium mb-3 text-indent">《教育部学历证书电子注册备案表（学历证明书）》样式：</p>
+                        <div class="flex flex-wrap justify-center items-end gap-6">
+                            <div class="text-center">
+                                <img src="https://p26-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/49bcf3f3ea9149d68adb148f85318ff0.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=20260326132757DD37CCA95EB772CD7FF0&rrcfp=8a172a1a&x-expires=1775107677&x-signature=djFb1ldmlS6tqOYE0hoanoLJGTA%3D" alt="打印版" class="intro-img">
+                                <p class="text-xs mt-1">i 打印版</p>
+                            </div>
+                            <div class="text-center">
+                                <img src="https://p3-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/5a40965dd87d44af8da6b515326857d2.png~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=20260326133036A77265B7493673D070FA&rrcfp=8a172a1a&x-expires=1775107836&x-signature=lAw6ewvrcqHbxKIyEG28mUby0ng%3D" alt="电子邮件格式" class="intro-img">
+                                <p class="text-xs mt-1">ii 电子邮件(html格式)</p>
+                            </div>
+                            <div class="text-center">
+                                <img src="https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/477df13e6c7d423c9570c79095d233d0.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=202603261333038C833032713C71C5AC44&rrcfp=8a172a1a&x-expires=1775107983&x-signature=%2BDs23cM95moVigYxvv5IyAE9jLE%3D" alt="PDF电子文档" class="intro-img">
+                                <p class="text-xs mt-1">iii PDF电子文档</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <p class="text-sm font-medium mb-3 text-indent">《教育部学籍在线验证报告》样式：</p>
+                        <div class="flex flex-wrap justify-center items-end gap-6">
+                            <div class="text-center">
+                                <img src="https://p3-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/a021f40cd6fc41bebdbfff7a3192d46b.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=202603261333038C833032713C71C5AC44&rrcfp=8a172a1a&x-expires=1775107983&x-signature=L39v4%2Fm1Be5vZrDmgiVebJ74oJE%3D" alt="打印版" class="intro-img">
+                                <p class="text-xs mt-1">i 打印版</p>
+                            </div>
+                            <div class="text-center">
+                                <img src="https://p26-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/c470cc44fdbc4b11b5788547d2eecc13.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=202603261333038C833032713C71C5AC44&rrcfp=8a172a1a&x-expires=1775107983&x-signature=vjJwTBxlMjqBeb7xkFL3nTCf%2Fxk%3D" alt="电子邮件格式" class="intro-img">
+                                <p class="text-xs mt-1">ii 电子邮件(html格式)</p>
+                            </div>
+                            <div class="text-center">
+                                <img src="https://p26-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/3955f0e97a6e42649b6c9b1808065b96.png~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=20260326133556DFA378B8578E90B3AEA0&rrcfp=8a172a1a&x-expires=1775108156&x-signature=GOAdHGFIIYBxQFi0nvKSGRkbh4c%3D" alt="PDF电子文档" class="intro-img">
+                                <p class="text-xs mt-1">iii PDF电子文档</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <p class="text-sm font-medium mb-3 text-indent">《中国高等教育学位在线验证报告》样式：</p>
+                        <div class="flex flex-wrap justify-center items-end gap-6">
+                            <div class="text-center">
+                                <img src="https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/f0d249fc6683440a8016ae82ae56128d.png~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=2026032613391885E81A584D77D2FA46DD&rrcfp=8a172a1a&x-expires=1775108358&x-signature=eTlsY7akeDZTZR5TLsG18QY3KeQ%3D" alt="打印版" class="intro-img">
+                                <p class="text-xs mt-1">i 打印版</p>
+                            </div>
+                            <div class="text-center">
+                                <img src="https://p3-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/8ecefd2a0a6a49ceb90a162eb54bfa4d.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=20260326134252EAD42F0CFD2EB8EF1886&rrcfp=8a172a1a&x-expires=1775108572&x-signature=DrD371NpqPNv33WIiQHzkEsEYT4%3D" alt="电子邮件格式" class="intro-img">
+                                <p class="text-xs mt-1">ii 电子邮件(html格式)</p>
+                            </div>
+                            <div class="text-center">
+                                <img src="https://p26-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/b283f76d577a40389fb340dbac33af1e.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=20260326134252EAD42F0CFD2EB8EF1886&rrcfp=8a172a1a&x-expires=1775108572&x-signature=vqztTOgtY%2BfULXBowhG2uVI8n%2BE%3D" alt="PDF电子文档" class="intro-img">
+                                <p class="text-xs mt-1">iii PDF电子文档</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <a href="#" class="text-xuexin-primary text-sm hover:underline">点击查看新旧版所有报告样式>></a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 防伪措施页面 -->
+            <div class="content-page">
+                <h3 class="text-lg font-bold text-center mb-6">在线验证报告采取哪些防伪措施</h3>
+                <div class="text-sm leading-relaxed max-w-3xl mx-auto">
+                    <p class="mb-4 text-indent">(1) 在线验证。最有效、最便捷的防伪措施，通过在线验证系统查询或电子版的链接方式，在线核实验证报告内容是否与全国高等教育学籍学历学位电子注册数据库吻合。</p>
+                    <p class="mb-4 text-indent">(2) 二维码。将验证报告内容编码到二维码中，增加了验证报告被伪造的难度。</p>
+                </div>
+            </div>
+
+            <!-- 4. 验证真伪页面 -->
+            <div class="content-page">
+                <h3 class="text-lg font-bold text-center mb-6">如何验证在线验证报告的真伪</h3>
+                <div class="text-sm leading-relaxed max-w-3xl mx-auto">
+                    <p class="mb-4 text-indent">验证报告真伪的方式有两种：</p>
+                    <ol class="list-decimal pl-6 mb-4">
+                        <li class="mb-2 text-indent">在学信网的在线验证系统中，输入验证报告中的在线验证码，即可免费验证报告内容是否与全国高等教育学籍学历学位电子注册数据库吻合。</li>
+                        <li class="mb-2 text-indent">使用学信网手机App或"学信网报告在线验证"微信小程序，扫描验证报告中的二维码，即可免费验证报告内容是否与全国高等教育学籍学历学位电子注册数据库吻合。</li>
+                    </ol>
+                    <p class="text-indent">验证通过的，说明验证报告内容真实有效；验证不通过的，说明验证报告内容可能被篡改或不存在。</p>
+                </div>
+            </div>
+
+            <!-- 5. 特点和用途页面 -->
+            <div class="content-page">
+                <h3 class="text-lg font-bold text-center mb-6">在线验证报告的特点和用途</h3>
+                <div class="text-sm leading-relaxed max-w-3xl mx-auto">
+                    <p class="mb-4 text-indent">(1) 特点：申请方便；使用灵活；验证便捷；多重防伪。</p>
+                    <p class="mb-4 text-indent">申请人可同时获得打印版、PDF版和邮件版的验证报告，无论是打印版的复印件，还是PDF版的拷贝件或转发的邮件版，都不会影响验证报告的验证效果。用户可根据需要选择不同版本的验证报告，使用非常灵活。</p>
+                    <p class="mb-4 text-indent">验证报告持有人通过链接方式和系统查询方式进行在线验证，也可以通过扫描二维码的方式进行验证，验证便捷，不需要支付费用。</p>
+                    <p class="mb-4 text-indent">验证报告采用"随机在线验证码"、"二维码"等多重防伪措施。</p>
+                    <p class="mb-4 text-indent">(2) 用途：验证报告可应用于求职招聘、派遣接收、升学(考研、专升本)、出国留学、出境学习、干部任免、职称评定、信用评估等。无论是报告权属人(学生)，还是报告核查方，涉及向第三方提供学籍学历学位等证明材料的，都可以通过网站查询获取。</p>
+                </div>
+            </div>
+
+            <!-- 6. 如何申请页面 -->
+            <div class="content-page">
+                <h3 class="text-lg font-bold text-center mb-6">如何申请在线验证报告</h3>
+                <div class="text-sm leading-relaxed max-w-3xl mx-auto">
+                    <h4 class="font-medium mb-2 text-indent">通过学信档案申请</h4>
+                    <p class="mb-3 text-indent">支持申请《教育部学籍在线验证报告》、《教育部学历证书电子注册备案表》、《中国高等教育学位在线验证报告》中文版/翻译件（英文）</p>
+                    <ol class="list-decimal pl-6 mb-4">
+                        <li class="mb-2 text-indent">第一步，访问学信网"学信档案"，使用学信网账号进行登录；</li>
+                        <li class="mb-2 text-indent">第二步，成功登录后，点击顶部菜单中的"在线验证报告"栏目，可申请《教育部学籍在线验证报告》、《教育部学历证书电子注册备案表》、《中国高等教育学位在线验证报告》中文版。点击顶部菜单中的"出国（境）报告发送"栏目，可申请《教育部学籍在线验证报告》、《教育部学历证书电子注册备案表》、《中国高等教育学位在线验证报告》翻译件（英文）。</li>
+                    </ol>
+                    <p class="text-orange-600 mb-2 text-indent">(方便您出国留学、出境学习、就业时提供可获得对方认可的英文证明材料，可以使用学信档案"出国（境）报告发送"功能申请学籍、学历、学位在线验证报告的英文翻译件)</p>
+                    <p class="text-orange-600 text-indent">(申请在线验证报告翻译件（英文）时，有可能需要进行人工翻译核对，则需3-4个工作日完成)</p>
+                </div>
+            </div>
+
+            <!-- 7. 如何使用页面 -->
+            <div class="content-page">
+                <h3 class="text-lg font-bold text-center mb-6">如何使用在线验证报告</h3>
+                <div class="text-sm leading-relaxed max-w-3xl mx-auto">
+                    <p class="mb-4 text-indent">验证报告申请成功后，会有四个功能按钮（打印备案表、下载备案表、发送备案表、查看二维码）、一个"学信二维码"和一个"在线验证码"。</p>
+                    
+                    <img src="https://p26-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/c9d7290d20a4491aad7befb9b56f2e9c.JPEG~tplv-a9rns2rl98-24:720:720.jpeg?lk3s=8e244e95&rcl=20260326134252EAD42F0CFD2EB8EF1886&rrcfp=8a172a1a&x-expires=1775108572&x-signature=z%2BA5y2TWFxg1JUVY7liydgWRr%2FU%3D" alt="验证报告示例" class="usage-img">
+                    
+                    <h4 class="font-medium mb-2 mt-4 text-indent">四个功能按钮</h4>
+                    <p class="mb-2 text-indent">打印备案表：点击打印图标，可以直接打印。</p>
+                    <img src="https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/49cb4cce82f143da9f15750526fae9cd.png~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=202603261404203E2C59F7A3BB9EF28AC6&rrcfp=8a172a1a&x-expires=1775109860&x-signature=k2NZJv6hZj1eGb4jUVLbz7thdqs%3D" alt="打印备案表" class="usage-img">
+                    
+                    <p class="mb-2 text-indent">下载备案表：点击下载图标，可以将PDF版本的备案表下载到本地硬盘。</p>
+                    <img src="https://p11-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/d18f2bf96d504a3b826827f031b95414.png~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=202603261404203E2C59F7A3BB9EF28AC6&rrcfp=8a172a1a&x-expires=1775109860&x-signature=esPAUA4poq6sghuIN7IRR5giuSc%3D" alt="下载备案表" class="usage-img">
+                    
+                    <p class="mb-2 text-indent">发送备案表：点击邮箱图标，在出现的文本输入框中输入邮箱地址，点击"发送"按钮将备案表（邮件中含PDF格式的备案表的附件）发送至此邮箱。登录邮箱查看邮件时，点击"在线验证"可以直接打开网页版在线验证报告。</p>
+                    <img src="https://p3-flow-imagex-download-sign.byteimg.com/tos-cn-i-a9rns2rl98/d3ab699f028044ffb28ad9504c1f530f.png~tplv-a9rns2rl98-24:720:720.png?lk3s=8e244e95&rcl=202603261404203E2C59F7A3BB9EF28AC6&rrcfp=8a172a1a&x-expires=1775109860&x-signature=RNHb0%2F2UUI0ZYDZxfjgefFpu4Vo%3D" alt="发送备案表" class="usage-img">
+                    
+                    <p class="mb-2 text-indent">查看二维码：点击二维码图标，可查看并下载学信二维码。</p>
+                </div>
+            </div>
+
+            <!-- 8. 延长验证有效期页面 -->
+            <div class="content-page">
+                <h3 class="text-lg font-bold text-center mb-6">在线验证报告如何延长验证有效期</h3>
+                <div class="text-sm leading-relaxed max-w-3xl mx-auto">
+                    <p class="mb-4 text-indent">您可在报告到期前一个月内或到期后，来延长验证有效期。</p>
+                    <ol class="list-decimal pl-6">
+                        <li class="mb-2 text-indent">第一步，访问学信网"学信档案"，使用学信网账号进行登录；</li>
+                        <li class="mb-2 text-indent">第二步，成功登录后，点击顶部菜单中的"在线验证报告"栏目；</li>
+                        <li class="mb-2 text-indent">第三步，进行《教育部学籍在线验证报告》、《教育部学历证书电子注册备案表》、《中国高等教育学位在线验证报告》的申请。（如想延长验证有效期，请进行第四步操作）</li>
+                        <li class="mb-2 text-indent">第四步，在"已申请的报告"中，找到需要延长验证有效期的在线验证码，点击对应的"延长验证有效期"按钮。</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- 9. 特别声明页面 -->
+            <div class="content-page">
+                <h3 class="text-lg font-bold text-center mb-6">特别声明和提示</h3>
+                <div class="text-sm leading-relaxed max-w-3xl mx-auto">
+                    <ol class="list-decimal pl-6">
+                        <li class="mb-2 text-indent">(1) 教育部2001年颁布《高等教育学历证书电子注册管理暂行规定》(教学[2001]4号)，明确自2001年起国家对高等教育学历证书实行电子注册制度，未经注册的学历证书，国家不予承认。</li>
+                        <li class="mb-2 text-indent">(2) 教育部2014年颁布《高等学校学生学籍学历电子注册办法》(教学[2014]11号)。</li>
+                        <li class="mb-2 text-indent">(3) 教育部2016年颁布《普通高等学校学生管理规定》(教育部令第41号)，学校应当执行高等教育学历证书电子注册管理制度。</li>
+                        <li class="mb-2 text-indent">(4) 用户在核查专升本的学历时，建议要求学历持有人提供专升本学历入学前的专科学历证书电子注册备案表，对其专科学历和专升本学历同时核查。</li>
+                    </ol>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- 底部 -->
+    <footer class="bg-gray-800 text-white py-4 mt-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-wrap justify-center gap-4 text-xs mb-2">
+                <a href="#" class="hover:text-gray-300">中心简介</a>
+                <a href="#" class="hover:text-gray-300">网站简介</a>
+                <a href="#" class="hover:text-gray-300">版权声明</a>
+                <a href="#" class="hover:text-gray-300">网站宣传</a>
+                <a href="#" class="hover:text-gray-300">联系我们</a>
+                <a href="#" class="hover:text-gray-300">招聘信息</a>
+                <a href="#" class="hover:text-gray-300">帮助中心</a>
+                <a href="#" class="hover:text-gray-300">学信十周年</a>
+                <a href="#" class="hover:text-gray-300">大事记</a>
+            </div>
+            <div class="text-center text-xs text-gray-400">
+                <p class="text-indent">客服热线：010-67410388 &nbsp;&nbsp; 客服邮箱：kefu@chsi.com.cn</p>
+                <p class="text-indent">主办单位：教育部学生服务与素质发展中心 &nbsp;&nbsp; 京ICP备1904913号-1 &nbsp;&nbsp; 京公网安备11010202009747号</p>
+                <p class="text-indent">Copyright © 2003-2026 学信网 All Rights Reserved</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
